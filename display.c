@@ -1,7 +1,8 @@
+
 #include <GL/glut.h>
 #include "v4l_base.h"
 #include "cl_base.h"
-#include "demosaic.h"
+#include "preprocess.h"
 
 GLuint tex = 0;          /* OpenGL texture buffer */
 struct v4l_base v4l;
@@ -15,8 +16,8 @@ void InitTexture()
 	glBindTexture(GL_TEXTURE_2D, tex);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glEnable(GL_TEXTURE_2D);
 
 	/* Set viewpoint */
@@ -38,10 +39,10 @@ void renderScene(void)
 
 	/* Grab image data */
  	img = v4l_base_read(&v4l);
-	//char* dat = demosaic_run(&cl, kernel, img->start);
+	char* dat = preprocess_run(&cl, kernel, img->start);
 
 	/* Set texture */
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 640, 480, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, img->start);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, 640, 480, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, dat);
 
 	/* Draw quad*/
 	glBegin(GL_QUADS);
@@ -71,10 +72,10 @@ int main(int argc, char **argv)
 	/* Initialize devices */
 	v4l_base_init(&v4l, "/dev/video0", 640, 480);
 	cl_base_init(&cl);
-	kernel = cl_kernel_init(&cl, "demosaic.cl", "MHCdemosaic");
+	kernel = cl_kernel_init(&cl, "preprocess.cl", "preprocess");
 
 	v4l_base_capture_start(&v4l);
-	demosaic_setup(&cl, kernel, 640, 480);
+	preprocess_init(&cl, kernel, 640, 480);
 
 	/* Register callbacks */
 	glutDisplayFunc(renderScene);

@@ -6,6 +6,8 @@
 
 struct cl_base
 {
+	cl_mem* buffers;
+	int buf_count;
 	cl_platform_id platform;
 	cl_device_id device;
 	cl_context context;

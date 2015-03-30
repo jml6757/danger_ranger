@@ -13,14 +13,14 @@ static size_t g_size[2];            /* Global image size */
 static size_t l_size[2] = {16, 16}; /* Workgroup size (platform dependent) */
 static unsigned int size;           /* Total image size */
 
-int demosaic_setup(struct cl_base* cl, cl_kernel kernel, size_t width, size_t height)
+int preprocess_init(struct cl_base* cl, cl_kernel kernel, size_t width, size_t height)
 {
 	int err;
 
 	/* Set local width and height variables */
 	g_size[0] = width;
 	g_size[1] = height;
-	size = 4 * width * height;
+	size = width * height * sizeof(short);
 
 	/* Allocate space for an RGBA image */
 	img = (char*) malloc(size);
@@ -50,7 +50,7 @@ int demosaic_setup(struct cl_base* cl, cl_kernel kernel, size_t width, size_t he
 	return 0;
 }
 
-char* demosaic_run(struct cl_base* cl, cl_kernel kernel, const void* raw)
+char* preprocess_run(struct cl_base* cl, cl_kernel kernel, const void* raw)
 {
 	int err;
 	cl_event event;
@@ -111,7 +111,7 @@ char* demosaic_run(struct cl_base* cl, cl_kernel kernel, const void* raw)
 	return img;
 }
 
-int demosaic_cleanup()
+int preprocess_free()
 {
 	clReleaseMemObject(ibuf);
 	clReleaseMemObject(obuf);

@@ -116,6 +116,8 @@ void cl_base_init(struct cl_base* cl)
 									 0,            /* queue properties      */
 									 &err);        /* error code (return)   */
 	CL_CHECK(err, "Create Command Queue");
+	cl->buffers = NULL;
+	cl->buf_count = 0;
 }
 
 void cl_base_info(struct cl_base* cl)
@@ -192,8 +194,21 @@ void cl_base_info(struct cl_base* cl)
 
 void cl_base_free(struct cl_base* cl)
 {
+	int i;
+	int err;
+
 	clReleaseContext(cl->context);
 	clReleaseCommandQueue(cl->queue);
+	if(cl->buffers != NULL)
+	{
+		for(i = 0; i < cl->buf_count; ++i)
+		{
+			err = clReleaseMemObject(cl->buffers[i]);
+			CL_CHECK(err, "Release Memory Object");
+		}
+
+		free(cl->buffers);
+	}
 }
 
 cl_kernel cl_kernel_init(struct cl_base* cl, const char* filename, const char* entry)

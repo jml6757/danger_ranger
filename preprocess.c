@@ -13,6 +13,9 @@ int preprocess_init(struct cl_base* cl, struct cl_task* ts)
 {
 	int err;
 
+	/* Build the kernel and set default parameters */
+	cl_task_init(ts, cl, "preprocess.cl", "preprocess");
+
 	/* Set local width and height variables */
 	size = ts->g_size[0] * ts->g_size[1] * sizeof(short);
 

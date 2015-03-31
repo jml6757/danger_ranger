@@ -7,7 +7,7 @@
 GLuint tex = 0;          /* OpenGL texture buffer */
 struct v4l_base v4l;
 struct cl_base cl;
-cl_kernel kernel;
+struct cl_task ts;
 
 void InitTexture()
 {
@@ -39,7 +39,7 @@ void renderScene(void)
 
 	/* Grab image data */
  	img = v4l_base_read(&v4l);
-	char* dat = preprocess_run(&cl, kernel, img->start);
+	char* dat = preprocess_run(&cl, &ts, img->start);
 
 	/* Set texture */
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, 640, 480, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, dat);
@@ -72,10 +72,10 @@ int main(int argc, char **argv)
 	/* Initialize devices */
 	v4l_base_init(&v4l, "/dev/video0", 640, 480);
 	cl_base_init(&cl);
-	kernel = cl_kernel_init(&cl, "preprocess.cl", "preprocess");
+	cl_task_init(&ts, &cl, "preprocess.cl", "preprocess");
 
 	v4l_base_capture_start(&v4l);
-	preprocess_init(&cl, kernel, 640, 480);
+	preprocess_init(&cl, &ts);
 
 	/* Register callbacks */
 	glutDisplayFunc(renderScene);

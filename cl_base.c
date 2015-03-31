@@ -113,7 +113,7 @@ void cl_base_init(struct cl_base* cl)
    /* Create a command queue for the GPU device */
 	cl->queue = clCreateCommandQueue(cl->context,  /* context               */
 									 cl->device,   /* device                */ 
-									 0,            /* queue properties      */
+									  CL_QUEUE_PROFILING_ENABLE ,            /* queue properties      */
 									 &err);        /* error code (return)   */
 	CL_CHECK(err, "Create Command Queue");
 	cl->buffers = NULL;
@@ -211,14 +211,18 @@ void cl_base_free(struct cl_base* cl)
 	}
 }
 
-cl_kernel cl_kernel_init(struct cl_base* cl, const char* filename, const char* entry)
+void cl_task_init(struct cl_task* ts, struct cl_base* cl, const char* filename, const char* function)
 {
 	cl_int err;
 	FILE *file;
 	char *buf;
 	size_t size;
-	cl_program program;
-	cl_kernel kernel;
+
+	/* Set global and local sizes (hardcoded for this application)*/
+	ts->g_size[0] = 640;
+	ts->g_size[1] = 480;
+	ts->l_size[0] = 16;
+	ts->l_size[1] = 16; 
 
 	/* Open program file */
 	file = fopen(filename, "r");
@@ -237,46 +241,44 @@ cl_kernel cl_kernel_init(struct cl_base* cl, const char* filename, const char* e
 	fread(buf, sizeof(char), size, file);
 
 	/* Create program from the file buffer */
-	program = clCreateProgramWithSource(cl->context,         /* context               */
-										1,                   /* number of buffers     */
-										(const char**) &buf, /* code buffers          */
-										&size,               /* code buffer sizes     */
-										&err);               /* error code (return)   */
+	ts->program = clCreateProgramWithSource(cl->context,         /* context               */
+											1,                   /* number of buffers     */
+											(const char**) &buf, /* code buffers          */
+											&size,               /* code buffer sizes     */
+											&err);               /* error code (return)   */
 	CL_CHECK(err, "Create Program");
 
 	/* Build the program */
-	err = clBuildProgram(program,  /* program           */
-						 0,        /* num devices       */
-						 NULL,     /* device list       */
-						 NULL,     /* options           */
-						 NULL,     /* callback function */
-						 NULL);    /* callback data     */
+	err = clBuildProgram(ts->program,  /* program           */
+						 0,            /* num devices       */
+						 NULL,         /* device list       */
+						 NULL,         /* options           */
+						 NULL,         /* callback function */
+						 NULL);        /* callback data     */
 	CL_CHECK(err, "Build Program");
 
 	/* Create the kernel */
-	kernel = clCreateKernel(program,      /* program             */
-							entry,        /* kernel name         */
-							&err);        /* error code (return) */
+	ts->kernel = clCreateKernel(ts->program,      /* program              */
+								function,         /* kernel function name */
+								&err);            /* error code (return)  */
 	CL_CHECK(err, "Create Kernel");
 
 	/* Clean up */
 	fclose(file);
 	free(buf);
-
-	return kernel;
 }
 
-void cl_kernel_free(cl_kernel kernel)
+void cl_task_free(struct cl_task* ts)
 {
-	clReleaseKernel(kernel);	
-	//clReleaseProgram(program); /* TODO: Preserve program reference to cleanly free */
+	clReleaseKernel(ts->kernel);	
+	clReleaseProgram(ts->program);
 }
 
 #if 0
 int main() 
 {
 	struct cl_base cl;
-	cl_kernel kernel;
+	struct cl_task ts;
 
 	/* Initialize GPU */
 	cl_base_init(&cl);
@@ -285,8 +287,10 @@ int main()
 	cl_base_info(&cl);
 
 	/* Build/Run kernel here*/
+	cl_task_init(&ts, &cl, "preprocess.cl", "preprocess");
 
 	/* Cleanup */
+	cl_task_free(&ts);
 	cl_base_free(&cl);
 
 	return 0;

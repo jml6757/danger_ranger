@@ -7,20 +7,14 @@
 static cl_mem ibuf;                 /* Device input buffer */
 static cl_mem obuf;                 /* Device output buffer */
 static char* img;                   /* Host output buffer */
-
-/* Sizes */
-static size_t g_size[2];            /* Global image size */
-static size_t l_size[2] = {16, 16}; /* Workgroup size (platform dependent) */
 static unsigned int size;           /* Total image size */
 
-int preprocess_init(struct cl_base* cl, cl_kernel kernel, size_t width, size_t height)
+int preprocess_init(struct cl_base* cl, struct cl_task* ts)
 {
 	int err;
 
 	/* Set local width and height variables */
-	g_size[0] = width;
-	g_size[1] = height;
-	size = width * height * sizeof(short);
+	size = ts->g_size[0] * ts->g_size[1] * sizeof(short);
 
 	/* Allocate space for an RGBA image */
 	img = (char*) malloc(size);
@@ -42,15 +36,15 @@ int preprocess_init(struct cl_base* cl, cl_kernel kernel, size_t width, size_t h
 	CL_CHECK(err, "Create Buffer (obuf)");
 
 	/* Set kernel arguments */
-	err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &ibuf);
+	err = clSetKernelArg(ts->kernel, 0, sizeof(cl_mem), &ibuf);
 	CL_CHECK(err, "Set Kernel Arg 0");
-	err = clSetKernelArg(kernel, 1, sizeof(cl_mem), &obuf);
+	err = clSetKernelArg(ts->kernel, 1, sizeof(cl_mem), &obuf);
 	CL_CHECK(err, "Set Kernel Arg 1");
 
 	return 0;
 }
 
-char* preprocess_run(struct cl_base* cl, cl_kernel kernel, const void* raw)
+char* preprocess_run(struct cl_base* cl, struct cl_task* ts, const void* raw)
 {
 	int err;
 	cl_event event;
@@ -69,11 +63,11 @@ char* preprocess_run(struct cl_base* cl, cl_kernel kernel, const void* raw)
 
 	/* Enqueue kernel */
 	err = clEnqueueNDRangeKernel(cl->queue,   /* command_queue           */
-								 kernel,      /* kernel                  */
+								 ts->kernel,  /* kernel                  */
 								 2,           /* work_dim                */
 								 NULL,        /* global_work_offset      */
-								 (const size_t *)&g_size,     /* global_work_size        */
-								 (const size_t *)&l_size,     /* local_work_size         */
+								 &ts->g_size, /* global_work_size        */
+								 &ts->l_size, /* local_work_size         */
 								 0,           /* num_events_in_wait_list */
 								 NULL,        /* event_wait_list         */
 								 &event);     /* event                   */
@@ -91,20 +85,21 @@ char* preprocess_run(struct cl_base* cl, cl_kernel kernel, const void* raw)
 							  NULL);          /* event                   */
 	CL_CHECK(err, "Read Buffer");
 
-#if 0
+
 	/* Wait for computation kernel to finish*/
 	clWaitForEvents(1, &event);
 
+#if 0
 	/* Obtain the start- and end time for the event */
 	unsigned long start = 0;
 	unsigned long end = 0;
 	err = clGetEventProfilingInfo(event,CL_PROFILING_COMMAND_START, sizeof(cl_ulong),&start,NULL);       
 	err = clGetEventProfilingInfo(event,CL_PROFILING_COMMAND_END, sizeof(cl_ulong),&end,NULL);
 
-	/* Compute the duration in nanoseconds */
-	unsigned long duration = end - start;
+	/* Compute the duration in microseconds */
+	double duration = (double) (end - start) / 1000.0f;
 
-	printf("Computation Time: %luns\n", duration);
+	printf("Computation Time: %0.1lfus\n", duration);
 #endif
 
 	clReleaseEvent(event);

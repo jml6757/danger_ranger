@@ -19,11 +19,11 @@ union converter
 #define MAX_PTS 256
 #define fetch(x,y) image[y*width + x]
 
-__kernel void preprocess(__read_only   uchar*    image,
-						 __constant    uchar*    table,
-						 __global      ushort2*  point,
-						 __global      uint      count)
-{        
+__kernel void fast(__read_only   uchar*    image,
+				   __constant    uchar*    table,
+				   __global      ushort2*  point,
+				   __global      uint      count)
+{
 	union converter c;
 	
 	/* Coordinate data*/

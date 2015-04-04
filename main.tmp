@@ -1,0 +1,85 @@
+#include "v4l_base.h"
+#include "cl_base.h"
+#include "preprocess.h"
+#include "fast.h"
+
+/*
+ * NOTES:
+ * 1. OpenCL must be initialized first to allocate buffers (before v4l + kernels + radio + compress)
+ */
+int main2()
+{
+	/* Base devices */
+	struct cl_base cl;
+	struct v4l_base v4l;
+
+	/* OpenCL Tasks */
+	struct cl_task cl_preprocess;
+	struct cl_task cl_fast;
+	struct cl_task cl_freak;
+	struct cl_task cl_match;
+
+	struct v4l_img* raw;
+
+
+
+
+	/* Initialize MALI GPU */
+	cl_base_init(&cl);
+
+	/* Allocate all buffers using OpenCL */
+	// 5x v4l            (640x480x2)
+	// 1x preprocess     (640x480x1)
+	// 1x compress       (640x480x1)
+	// 1x tx             (640x480x1)
+	// 1x fast table     (8196x1)
+	// 1x fast points    (256x2)
+	// 1x freak          (???x???)
+
+	/* Initialize camera device */
+	v4l_base_init(&v4l, "/dev/video0", 640, 480);
+
+
+	/* Initialize all GPU tasks */
+	preprocess_init(&cl, &cl_preprocess);
+	fast_init(&cl, &cl_fast);
+	//freak
+	//match
+
+	/* etc... */
+
+	/* Initialize compression (TBD) */
+
+	/* Initialize radio (TBD)*/
+
+	/* Start capturing camera data */
+	v4l_base_capture_start(&v4l);
+
+	/* Main Loop */
+	while(1)
+	{
+		/* Read raw image data */
+		raw = v4l_base_read(&v4l);
+
+		/* Perform image preprocessing */
+		preprocess_run(&cl, &ts_preprocess, raw->start);
+		clWaitForEvents(1, &event);
+		clReleaseEvent(event);
+
+		/* Schedule GPU detection algorithms */
+		fast_run(&cl, &ts_preprocess, raw->start);
+
+		/* Run GPU compression algorithms */
+
+		/* Transmit image */
+
+		/* Wait for image processing to finish */
+		clWaitForEvents(1, &event);
+		clReleaseEvent(event);
+
+		/* Transmit detection coordinates */
+
+	}
+
+
+}

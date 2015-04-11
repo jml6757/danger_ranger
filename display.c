@@ -3,11 +3,13 @@
 #include "v4l_base.h"
 #include "cl_base.h"
 #include "preprocess.h"
+#include "fast.h"
 
 GLuint tex = 0;          /* OpenGL texture buffer */
 struct v4l_base v4l;
 struct cl_base cl;
 struct cl_task ts_preprocess;
+struct cl_task ts_fast;
 
 void InitTexture()
 {
@@ -73,6 +75,7 @@ int main(int argc, char **argv)
 	v4l_base_init(&v4l, "/dev/video0", 640, 480);
 	cl_base_init(&cl);
 	preprocess_init(&cl, &ts_preprocess);
+	fast_init(&cl, &ts_fast, 0, 0, 0);
 	v4l_base_capture_start(&v4l);
 
 	/* Register callbacks */

@@ -216,6 +216,7 @@ void cl_task_init(struct cl_task* ts, struct cl_base* cl, const char* filename, 
 	cl_int err;
 	FILE *file;
 	char *buf;
+	char *log;
 	size_t size;
 
 	/* Set global and local sizes (hardcoded for this application)*/
@@ -255,7 +256,29 @@ void cl_task_init(struct cl_task* ts, struct cl_base* cl, const char* filename, 
 						 NULL,         /* options           */
 						 NULL,         /* callback function */
 						 NULL);        /* callback data     */
-	CL_CHECK(err, "Build Program");
+	if(err < 0)
+	{
+		/* Get build information*/
+		err = clGetProgramBuildInfo(ts->program, cl->device, CL_PROGRAM_BUILD_LOG, NULL, NULL, &size);
+		CL_CHECK(err, "Build Info Size");
+		log = malloc(size + 1);
+
+		err = clGetProgramBuildInfo(ts->program, cl->device, CL_PROGRAM_BUILD_LOG, size, log, NULL);
+		CL_CHECK(err, "Build Info Log");
+		
+		/* Display information*/
+		printf("%s", log);
+		
+		/* Cleanup */
+		free(log);
+		exit(1);
+	}
+	else
+	{
+		CL_CHECK(err, "Build Program");
+	}
+
+
 
 	/* Create the kernel */
 	ts->kernel = clCreateKernel(ts->program,      /* program              */

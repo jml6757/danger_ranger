@@ -17,12 +17,12 @@ union converter
 };
 
 #define MAX_PTS 256
-#define fetch(x,y) image[y*width + x]
+#define fetch(x,y) image[(y)*width + x]
 
-__kernel void fast(__read_only   uchar*    image,
+__kernel void fast(__global read_only  uchar*  image,
 				   __constant    uchar*    table,
 				   __global      ushort2*  point,
-				   __global      uint      count)
+				   __global      uint*     count)
 {
 	union converter c;
 	
@@ -60,19 +60,16 @@ __kernel void fast(__read_only   uchar*    image,
 	);
 
 	/* Calculate which pixels are above or below the threshold */
-	uchar16 gt_thresh = abs_diff(ring, center) > threshold;
+	char16 gt_thresh = abs_diff(ring, center) > threshold;
 
 	/* Calculate which pixels are greater than the center */
-	uchar16 gt_center = ring > center;
+	char16 gt_center = ring > center;
 
 	/* Pixels which are greater than the threshold and are greater than the center are whites */
-	uchar16 whites = gt_thresh & gt_center;
+	char16 whites = gt_thresh & gt_center;
 
 	/* Pixels which are greater than the threshold and are less than the center are blacks */
-	uchar16 blacks = gt_thresh & ~gt_center;
-	
-	uint num_whites = popcount(whites) >> 3;
-	uint num_blacks = popcount(blacks) >> 3;
+	char16 blacks = gt_thresh & ~gt_center;
 
 	/* Compress bright/dark flags into a short */
 	c.c = &whites;
@@ -86,14 +83,14 @@ __kernel void fast(__read_only   uchar*    image,
 	c.i->x |= c.i->y << 1;
 	c.s->x |= c.s->y << 1;
 	ushort b_flags = c.s->x;    
-	
+
 	/* Return the keypoint */
-	if(table[w_flags >> 3] || table[b_flags >> 3])
+	if(table[w_flags] || table[b_flags])
 	{
-		if(count < MAX_PTS)
+		if(*count < MAX_PTS)
 		{
-			 uint index = atomic_inc(&count);
-			 point[index] =  (short2)(x,y);
+			 uint index = atomic_inc(count);
+			 point[index] =  (ushort2)(x,y);
 		}
 	}
 }

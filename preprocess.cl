@@ -10,7 +10,7 @@
  * @param   img   8-bit grayscale adjusted output image
  *****************************************************************************/
 __kernel void preprocess(__global read_only  uchar*  src,
-						__global write_only uchar*  img)
+						 __global write_only uchar*  img)
 {
 	/* Get pixel index */
 	int idx = get_global_id(1)*get_global_size(0) + get_global_id(0);
@@ -19,5 +19,5 @@ __kernel void preprocess(__global read_only  uchar*  src,
 	ushort* pixel = src;
 
 	/* Scale pixel intensity and write to output buffer*/
-	img[idx] = ((float) pixel[idx] * MULTIPLIER / (float) 0xFFFF) * (float) 255;;
+	img[idx] = ((float) pixel[idx] * MULTIPLIER / (float) 0xFFFF) * (float) 255;
 }

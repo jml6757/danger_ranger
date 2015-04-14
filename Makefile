@@ -16,6 +16,7 @@ BIN  = out
 # Externals
 GL_LIBS = -lglut -lGL -lGLU -lGLEW
 CL_LIBS = -lOpenCL
+JP_LIBS = -ljpeg
 
 # Flags
 CFLAGS  = -g -Wall
@@ -30,4 +31,4 @@ clean:
 	$(CC) $(INC) -c $(CFLAGS) $< -o $@
 
 $(BIN): $(OBJS)
-	$(CC) $(CFLAGS) $(OBJS) -o $@ $(CL_LIBS) $(GL_LIBS)
+	$(CC) $(CFLAGS) $(OBJS) -o $@ $(CL_LIBS) $(GL_LIBS) $(JP_LIBS)

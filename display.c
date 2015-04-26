@@ -32,16 +32,16 @@ void InitTexture()
 
 void renderScene(void)
 {
-	struct v4l_img* img;
-	char* dat;
 	int i;
-	struct points pts;
+	char* dat;
+	struct points pts = {0};
+	struct v4l2_buffer* img;
 
 	/* Read raw image data */
 	img = v4l_base_dequeue(&v4l);
 
 	/* Perform image preprocessing */
-	dat = preprocess_run(&cl, &ts_preprocess, img->start);
+	dat = preprocess_run(&cl, &ts_preprocess, img->m.userptr);
 
 	/* Add buffer back to the queue*/
 	v4l_base_enqueue(&v4l, img);
@@ -85,6 +85,8 @@ void renderScene(void)
 
 int main(int argc, char **argv) 
 {
+	int i;
+
 	/* Init GLUT */
 	glutInit(&argc, argv);
 
@@ -97,6 +99,15 @@ int main(int argc, char **argv)
 
 	/* Initialize devices and kernels */
 	v4l_base_init(&v4l, "/dev/video0", 640, 480);
+
+	/* Add buffers */
+	for(i = 0; i < 4; ++ i)
+	{
+		int size = sizeof(short) * 640 * 480;
+		void* buf = malloc(size);
+		v4l_base_mem_add(&v4l, buf, size);
+	}
+
 	cl_base_init(&cl);
 	preprocess_init(&cl, &ts_preprocess);
 	fast_init(&cl, &ts_fast, 0, 0, 0);

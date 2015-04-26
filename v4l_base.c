@@ -11,12 +11,12 @@
 
 #include "v4l_base.h"
 
-static int v4l_set_format(struct v4l_base* v4l, int width, int height)
+static int v4l_base_set_format(struct v4l_base* v4l, int width, int height)
 {
 	int err;
+	struct v4l2_format fmt = {0};
 
 	/* Set video format parameters */
-	struct v4l2_format fmt = {0};
 	fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	fmt.fmt.pix.width = width;
 	fmt.fmt.pix.height = height;
@@ -30,52 +30,25 @@ static int v4l_set_format(struct v4l_base* v4l, int width, int height)
 	return 0;
 }
 
-static int v4l_req_buffer(struct v4l_base* v4l, int count)
+int v4l_base_mem_init(struct v4l_base* v4l, int count)
 {
-	int err, i;
-	struct v4l2_buffer buffer;
-	struct v4l_img* img;
-
+	int err;
+	struct v4l2_requestbuffers req = {0};
 
 	/* Create buffer request */
-	struct v4l2_requestbuffers req = {0};
 	req.count = count;
 	req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	req.memory = V4L2_MEMORY_MMAP;
+	req.memory = V4L2_MEMORY_USERPTR;
 	
 	/* Request buffer allocation */
 	err = ioctl(v4l->fd, VIDIOC_REQBUFS, &req);
 	V4L_CHECK(err, "Request Buffer Error");
 
-	/* Memory map the requested buffers */
-	for (i = 0; i < req.count; i++)
-	{
-		/* Set buffer parameters */ 
-		buffer.type = req.type;
-		buffer.memory = V4L2_MEMORY_MMAP;
-		buffer.index = i;
-
-		/* Query driver buffer data */
-		err = ioctl(v4l->fd, VIDIOC_QUERYBUF, &buffer);
-		V4L_CHECK(err, "Query Buffer Error");
-
-		/* Set userspace buffer data */
-		img = &v4l->img[i];
-		img->buffer = buffer;
-		img->start  = mmap(NULL, buffer.length,
-							  PROT_READ | PROT_WRITE,
-							  MAP_SHARED,
-							  v4l->fd, buffer.m.offset);
-
-		V4L_CHECK(img->start, "Mmap Error");
-
-		/* Put all buffers in the video queue */
-		err = ioctl(v4l->fd, VIDIOC_QBUF, &buffer);
-		V4L_CHECK(err, "Initial Buffer Queue Error");
-
-	}
 	return 0;
 }
+
+
+/*---------------------------- General Functions ----------------------------*/
 
 int v4l_base_init(struct v4l_base* v4l, const char* device, const int width, const int height)
 {
@@ -88,8 +61,15 @@ int v4l_base_init(struct v4l_base* v4l, const char* device, const int width, con
 	}
 	
 	/* Initialize formatting and buffers */
-	v4l_set_format(v4l, width, height);
-	v4l_req_buffer(v4l, V4L_MAX_IMGS);
+	v4l_base_set_format(v4l, width, height);
+	v4l_base_mem_init(v4l, V4L_MAX_IMGS);
+	return 0;
+}
+
+int v4l_base_free(struct v4l_base* v4l)
+{
+	/* TODO: Implement proper cleanup code */
+	close(v4l->fd);
 	return 0;
 }
 
@@ -103,7 +83,6 @@ int v4l_base_info(struct v4l_base* v4l)
 	V4L_CHECK(err, "Capabilities Query Error");
 
 	/* Print Capabilities */
-
 	printf("------------------------- V4L Device Information -------------------------\n");
 	printf("Driver:    %s\n", cap.driver);
 	printf("Device:    %s\n", cap.card);
@@ -151,12 +130,45 @@ int v4l_base_info(struct v4l_base* v4l)
 	return 0;
 }
 
+
+/*---------------------------- Memory Functions -----------------------------*/
+
+int v4l_base_mem_add(struct v4l_base* v4l, void* ptr, int length)
+{
+	struct v4l2_buffer buffer;
+
+	/* Set buffer parameters */ 
+	buffer.type      = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	buffer.memory    = V4L2_MEMORY_USERPTR;
+	buffer.index     = v4l->count;
+	buffer.m.userptr = (unsigned long) ptr;
+	buffer.length    = length;
+
+	/* Add buffer to local V4L data */
+	v4l->bufs[v4l->count] = buffer;
+
+	/* Increment total buffer count */
+	v4l->count++;
+
+	return 0;
+}
+
+
+/*---------------------------- Capture Functions ----------------------------*/
+
 int v4l_base_capture_start(struct v4l_base* v4l)
 {
-	int err;
+	int err, i;
 	int stream_type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
-	/* Start streaming */
+	/* Add buffers to the capture queue */
+	for (i = 0; i < v4l->count; ++i) 
+	{
+		err = ioctl(v4l->fd, VIDIOC_QBUF, &(v4l->bufs[i]));
+		V4L_CHECK(err, "Queue Buffer Error");
+	}
+
+	/* Start streaming to buffers */
 	err = ioctl(v4l->fd, VIDIOC_STREAMON, &stream_type);
 	V4L_CHECK(err, "Stream On Error");
 	return 0;
@@ -170,35 +182,32 @@ int v4l_base_capture_stop(struct v4l_base* v4l)
 	/* Stop streaming */
 	err = ioctl(v4l->fd, VIDIOC_STREAMOFF, &stream_type);
 	V4L_CHECK(err, "Stream On Error");
+
 	return 0;
 }
 
-void v4l_base_enqueue(struct v4l_base* v4l, struct v4l_img* img)
+void v4l_base_enqueue(struct v4l_base* v4l, struct v4l2_buffer* buf)
 {
 	/* Add buffer back to the end of queue*/
-	int err = ioctl(v4l->fd, VIDIOC_QBUF, &(img->buffer));
+	int err = ioctl(v4l->fd, VIDIOC_QBUF, buf);
 	V4L_CHECK(err, "Buffer Queue Error");
 }
 
-struct v4l_img* v4l_base_dequeue(struct v4l_base* v4l)
+struct v4l2_buffer* v4l_base_dequeue(struct v4l_base* v4l)
 {
 	int err;
 	struct v4l2_buffer buffer = {0};
+	
+	/* Set buffer parameters */
 	buffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	buffer.memory = V4L2_MEMORY_USERPTR;
 
 	/* Remove buffer from front of queue (BLOCKING) */
 	err = ioctl(v4l->fd, VIDIOC_DQBUF, &buffer);
 	V4L_CHECK(err, "Buffer Dequeue Error");
 
-	return &(v4l->img[buffer.index]);
-}
-
-
-int v4l_base_free(struct v4l_base* v4l)
-{
-	/* TODO: Implement proper cleanup code */
-	close(v4l->fd);
-	return 0;
+	/* Return local buffer pointer */
+	return &(v4l->bufs[buffer.index]);
 }
 
 #if 0

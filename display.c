@@ -4,8 +4,9 @@
 
 #include "v4l_base.h"
 #include "cl_base.h"
-#include "preprocess.h"
-#include "fast.h"
+
+#include "kernels/preprocess.h"
+#include "kernels/fast.h"
 
 GLuint tex = 0;
 struct v4l_base v4l;
@@ -13,8 +14,19 @@ struct cl_base cl;
 struct cl_task ts_preprocess;
 struct cl_task ts_fast;
 
-void InitTexture()
+void renderScene(void);
+
+void SetupGL(int argc, char **argv)
 {
+	/* Init GLUT */
+	glutInit(&argc, argv);
+
+	/* Create window */
+	glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGBA);
+	glutInitWindowPosition(100,100);
+	glutInitWindowSize(640, 480);
+	glutCreateWindow("Hello World");
+
 	/* Create texture */
 	glGenTextures(1, &tex);
 	glBindTexture(GL_TEXTURE_2D, tex);
@@ -23,11 +35,16 @@ void InitTexture()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glEnable(GL_TEXTURE_2D);
+	
+	/* Enable points */
 	glEnable(GL_POINT_SMOOTH);
 
 	/* Set viewpoint */
 	glOrtho(0.0, 640, 0.0, 480, -1.0, 1.0);
 	glMatrixMode(GL_PROJECTION);
+
+	/* Register callbacks */
+	glutDisplayFunc(renderScene);
 }
 
 void renderScene(void)
@@ -53,7 +70,7 @@ void renderScene(void)
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	/* Set texture */
+	/* Set and bind the texture */
 	glColor3f(1.0f, 1.0f, 1.0f);
 	glBindTexture(GL_TEXTURE_2D, tex);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, 640, 480, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, dat);
@@ -87,34 +104,25 @@ int main(int argc, char **argv)
 {
 	int i;
 
-	/* Init GLUT */
-	glutInit(&argc, argv);
-
-	/* Create window */
-	glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGBA);
-	glutInitWindowPosition(100,100);
-	glutInitWindowSize(640, 480);
-	glutCreateWindow("Hello World");
-	InitTexture();
+	/* Setup GL components */
+	SetupGL(argc, argv);
 
 	/* Initialize devices and kernels */
 	v4l_base_init(&v4l, "/dev/video0", 640, 480);
+	cl_base_init(&cl);
+	preprocess_init(&cl, &ts_preprocess);
+	fast_init(&cl, &ts_fast, 0, 0, 0);
 
-	/* Add buffers */
-	for(i = 0; i < 4; ++ i)
+	/* Add buffers for camera capture */
+	for(i = 0; i < 5; ++ i)
 	{
 		int size = sizeof(short) * 640 * 480;
 		void* buf = malloc(size);
 		v4l_base_mem_add(&v4l, buf, size);
 	}
 
-	cl_base_init(&cl);
-	preprocess_init(&cl, &ts_preprocess);
-	fast_init(&cl, &ts_fast, 0, 0, 0);
+	/* Start image capture */
 	v4l_base_capture_start(&v4l);
-
-	/* Register callbacks */
-	glutDisplayFunc(renderScene);
 
 	/* Enter GLUT event processing cycle */
 	glutMainLoop();

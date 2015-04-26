@@ -211,6 +211,42 @@ void cl_base_free(struct cl_base* cl)
 	}
 }
 
+void* cl_base_mem_alloc(struct cl_base* cl, int size, int flags)
+{
+	cl_mem mem;
+	void* ptr;
+	int err;
+	
+	mem = clCreateBuffer(cl->context,                    /* context      */
+						 flags | CL_MEM_ALLOC_HOST_PTR,  /* flags        */
+						 size,                           /* size         */
+						 NULL,                           /* user pointer */
+						 &err);                          /* error        */
+	CL_CHECK(err, "Memory Allocation");
+
+ 	ptr = clEnqueueMapBuffer(cl->queue,     /* queue                   */
+ 							 mem,           /* memory buffer           */
+ 							 CL_TRUE,       /* blocking call           */
+ 							 CL_MAP_WRITE,  /* flags                   */
+ 							 0,             /* offset                  */
+ 							 size,          /* cb                      */
+ 							 0,             /* num_events_in_wait_list */
+ 							 NULL,          /* event_wait_list         */
+ 							 NULL,          /* event                   */
+ 							 &err);         /* error                   */
+ 	CL_CHECK(err, "Memory Map");
+
+
+	return ptr;
+}
+
+void cl_base_mem_free(struct cl_base* cl, cl_mem mem, void* ptr)
+{
+	//TODO
+}
+
+
+
 void cl_task_init(struct cl_task* ts, struct cl_base* cl, const char* filename, const char* function)
 {
 	cl_int err;
@@ -273,12 +309,6 @@ void cl_task_init(struct cl_task* ts, struct cl_base* cl, const char* filename, 
 		free(log);
 		exit(1);
 	}
-	else
-	{
-		CL_CHECK(err, "Build Program");
-	}
-
-
 
 	/* Create the kernel */
 	ts->kernel = clCreateKernel(ts->program,      /* program              */

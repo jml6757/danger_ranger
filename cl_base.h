@@ -21,7 +21,8 @@ const char* cl_error(cl_int error);
 void cl_base_init(struct cl_base* cl);
 void cl_base_info(struct cl_base* cl);
 void cl_base_free(struct cl_base* cl);
-
+void* cl_base_mem_alloc(struct cl_base* cl, int size, int flags);
+void cl_base_mem_free(struct cl_base* cl, cl_mem mem, void* ptr);
 
 struct cl_task
 {

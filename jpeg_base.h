@@ -15,4 +15,4 @@ void jpeg_base_init(struct jpeg_base* jpeg, int quality);
 void jpeg_base_free(struct jpeg_base* jpeg);
 
 /* Returns the size */
-int  jpeg_base_compress(struct jpeg_base* jpeg, void* ibuf, void* obuf, int width, int height);
+int  jpeg_base_compress(struct jpeg_base* jpeg, char* ibuf, char* obuf, int width, int height);

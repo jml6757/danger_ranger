@@ -45,7 +45,7 @@ void jpeg_base_free(struct jpeg_base* jpeg)
 	jpeg_destroy_compress(&(jpeg->cinfo));
 }
 
-int jpeg_base_compress(struct jpeg_base* jpeg, void* ibuf, void* obuf, int width, int height)
+int jpeg_base_compress(struct jpeg_base* jpeg, char* ibuf, char* obuf, int width, int height)
 {
 	JSAMPROW row_pointer;
 
@@ -54,7 +54,7 @@ int jpeg_base_compress(struct jpeg_base* jpeg, void* ibuf, void* obuf, int width
 	jpeg->cinfo.image_height               = height;
 
 	/* Reset buffer position */
-	jpeg->cinfo.dest->next_output_byte    = obuf;
+	jpeg->cinfo.dest->next_output_byte    = (unsigned char*) obuf;
 	jpeg->cinfo.dest->free_in_buffer      = width * height;
 
 	/* Perform compression */
@@ -68,5 +68,5 @@ int jpeg_base_compress(struct jpeg_base* jpeg, void* ibuf, void* obuf, int width
     /* Cleanup */
     jpeg_finish_compress(&jpeg->cinfo);
 
-    return ((void*) jpeg->cinfo.dest->next_output_byte) - obuf;
+    return ((char*) jpeg->cinfo.dest->next_output_byte) - obuf;
 }

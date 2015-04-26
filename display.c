@@ -1,11 +1,13 @@
 
+#include <stdio.h>
 #include <GL/glut.h>
+
 #include "v4l_base.h"
 #include "cl_base.h"
 #include "preprocess.h"
 #include "fast.h"
 
-GLuint tex = 0;          /* OpenGL texture buffer */
+GLuint tex = 0;
 struct v4l_base v4l;
 struct cl_base cl;
 struct cl_task ts_preprocess;
@@ -21,6 +23,7 @@ void InitTexture()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glEnable(GL_TEXTURE_2D);
+	glEnable(GL_POINT_SMOOTH);
 
 	/* Set viewpoint */
 	glOrtho(0.0, 640, 0.0, 480, -1.0, 1.0);
@@ -30,20 +33,29 @@ void InitTexture()
 void renderScene(void)
 {
 	struct v4l_img* img;
+	char* dat;
+	int i;
+	struct points pts;
+
+	/* Read raw image data */
+	img = v4l_base_dequeue(&v4l);
+
+	/* Perform image preprocessing */
+	dat = preprocess_run(&cl, &ts_preprocess, img->start);
+
+	/* Add buffer back to the queue*/
+	v4l_base_enqueue(&v4l, img);
+
+	/* Run keypoint detection */
+	pts = fast_run(&cl, &ts_fast, dat);
 
 	/* Clear image buffer */
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT);
-
-	/* Draw a textured quad */
-	glColor3f(1.0f, 1.0f, 1.0f);
-	glBindTexture(GL_TEXTURE_2D, tex);
-
-	/* Grab image data */
- 	img = v4l_base_read(&v4l);
-	char* dat = preprocess_run(&cl, &ts_preprocess, img->start);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	/* Set texture */
+	glColor3f(1.0f, 1.0f, 1.0f);
+	glBindTexture(GL_TEXTURE_2D, tex);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, 640, 480, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, dat);
 
 	/* Draw quad*/
@@ -52,6 +64,18 @@ void renderScene(void)
 		glTexCoord2f(1.0f, 1.0f); glVertex2f(640, 0);
 		glTexCoord2f(1.0f, 0.0f); glVertex2f(640, 480);
 		glTexCoord2f(0.0f, 0.0f); glVertex2f(0, 480);
+	glEnd();
+
+	/* Unbind the texture */
+	glBindTexture(GL_TEXTURE_2D, 0); 
+
+	/* Draw points */
+	glColor3f(1.0f,0.0f,0.0f);
+	glBegin(GL_POINTS);
+		for(i=0; i < pts.count; ++i)
+		{
+			glVertex2f(pts.coords[i].x, 480 - pts.coords[i].y);
+		}
 	glEnd();
 
 	/* Swap image */

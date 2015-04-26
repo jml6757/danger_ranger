@@ -73,7 +73,7 @@ char* preprocess_run(struct cl_base* cl, struct cl_task* ts, const void* raw)
 								 &ts->l_size, /* local_work_size         */
 								 0,           /* num_events_in_wait_list */
 								 NULL,        /* event_wait_list         */
-								 &event);     /* event                   */
+								 NULL);     /* event                   */
 	CL_CHECK(err, "Enqueue Kernel");
 
 	/* Copy image from GPU */
@@ -85,7 +85,7 @@ char* preprocess_run(struct cl_base* cl, struct cl_task* ts, const void* raw)
 							  img,            /* ptr                     */
 							  0,              /* num_events_in_wait_list */
 							  NULL,           /* event_wait_list         */
-							  NULL);          /* event                   */
+							  &event);        /* event                   */
 	CL_CHECK(err, "Read Buffer");
 
 

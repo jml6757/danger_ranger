@@ -1,0 +1,79 @@
+#include <stdio.h>
+#include <time.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+#include "cl_base.h"
+#include "v4l_base.h"
+#include "jpeg_base.h"
+#include "preprocess.h"
+
+#define WIDTH  640
+#define HEIGHT 480
+
+int main()
+{
+	/* Buffers */
+	void* luminance;
+	void* compressed;
+	int size;
+	int counter = 0;
+	char file[128];
+
+	/* Base devices */
+	struct cl_base cl;
+	struct v4l_base v4l;
+	struct jpeg_base jpeg;
+
+	/* Structures */
+	struct cl_task cl_preprocess;
+	struct v4l_img* raw;
+
+	/* Initialize GPU */
+	cl_base_init(&cl);
+
+	/* Allocate buffers */
+	compressed = malloc(WIDTH*HEIGHT);
+
+	/* Initialize Camera/Compression */
+	v4l_base_init(&v4l, "/dev/video0", WIDTH, HEIGHT);
+	jpeg_base_init(&jpeg, 30);
+
+	/* Initialize GPU task */
+	preprocess_init(&cl, &cl_preprocess);
+
+	/* Start capturing camera data */
+	v4l_base_capture_start(&v4l);
+
+	/* Get the current time for unique file name */
+ 	struct timespec time;
+ 	clock_gettime(CLOCK_MONOTONIC, &time);
+
+ 	while(1)
+ 	{
+		/* Read raw image data */
+		raw = v4l_base_dequeue(&v4l);
+
+		/* Perform image preprocessing */
+		luminance = preprocess_run(&cl, &cl_preprocess, raw->start);
+		
+		/* Add buffer back to the queue*/
+		v4l_base_enqueue(&v4l, raw);
+
+		/* Compress preprocessed image */
+		size = jpeg_base_compress(&jpeg, luminance, compressed, WIDTH, HEIGHT);
+	 
+	 	/* Create image filename */
+		sprintf(file, "%ld_%ld_%d.jpg", time.tv_sec, time.tv_nsec, counter++);
+
+		printf("jpeg size = %d\n", size);
+
+		/* Write image */
+		// FILE *outfile  = fopen(file, "wb");
+		// fwrite(compressed, size, 1 ,outfile); 
+		// fclose(outfile);	
+ 	}	
+
+	return 0;
+}

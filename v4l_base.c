@@ -61,7 +61,7 @@ static int v4l_req_buffer(struct v4l_base* v4l, int count)
 
 		/* Set userspace buffer data */
 		img = &v4l->img[i];
-		img->length = buffer.length;
+		img->buffer = buffer;
 		img->start  = mmap(NULL, buffer.length,
 							  PROT_READ | PROT_WRITE,
 							  MAP_SHARED,
@@ -173,7 +173,14 @@ int v4l_base_capture_stop(struct v4l_base* v4l)
 	return 0;
 }
 
-struct v4l_img* v4l_base_read(struct v4l_base* v4l)
+void v4l_base_enqueue(struct v4l_base* v4l, struct v4l_img* img)
+{
+	/* Add buffer back to the end of queue*/
+	int err = ioctl(v4l->fd, VIDIOC_QBUF, &(img->buffer));
+	V4L_CHECK(err, "Buffer Queue Error");
+}
+
+struct v4l_img* v4l_base_dequeue(struct v4l_base* v4l)
 {
 	int err;
 	struct v4l2_buffer buffer = {0};
@@ -183,12 +190,9 @@ struct v4l_img* v4l_base_read(struct v4l_base* v4l)
 	err = ioctl(v4l->fd, VIDIOC_DQBUF, &buffer);
 	V4L_CHECK(err, "Buffer Dequeue Error");
 
-	/* Add buffer back to the end of queue*/
-	err = ioctl(v4l->fd, VIDIOC_QBUF, &buffer);
-	V4L_CHECK(err, "Buffer Queue Error");
-
 	return &(v4l->img[buffer.index]);
 }
+
 
 int v4l_base_free(struct v4l_base* v4l)
 {

@@ -49,7 +49,7 @@ void fast_init(struct cl_base* cl, struct cl_task* ts, cl_mem image, cl_mem tabl
 	// _point = point;
 
 	/* Build the kernel and set default parameters */
-	cl_task_init(ts, cl, "fast.cl", "fast");
+	cl_task_init(ts, cl, "kernels/fast.cl", "fast");
 
 	/* Set kernel arguments */
 	err = clSetKernelArg(ts->kernel, 0, sizeof(cl_mem), &_image);

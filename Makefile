@@ -9,15 +9,15 @@
 #**********************************************************************
 
 # Local Files
-SRCS = $(wildcard *.c)
-OBJS = $(SRCS:.c=.o)
+SRCS = $(wildcard *.c) $(wildcard kernels/*.c)
+OBJS = $(SRCS:.c=.o) 
 BIN  = out
 
 # Externals
 GL_LIBS = -lglut -lGL -lGLU -lGLEW
 CL_LIBS = -lOpenCL
 JP_LIBS = -ljpeg
-
+INC     = -I.
 # Flags
 CFLAGS  = -g -Wall
 
@@ -25,7 +25,7 @@ CFLAGS  = -g -Wall
 all: $(BIN)
 
 clean:
-	rm -f *.o $(BIN)
+	rm -f *.o kernels/*.o $(BIN)
 
 %.o: %.c
 	$(CC) $(INC) -c $(CFLAGS) $< -o $@
